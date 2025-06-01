@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>派兵比例計算器（優化＋平均分配）</title>
+  <style>
+    body {
+      font-family: "Microsoft JhengHei", sans-serif;
+      margin: 20px;
+    }
+    h2 {
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    h3 {
+      margin-top: 1em;
+      margin-bottom: 0.3em;
+    }
+    label {
+      display: inline-block;
+      width: 120px;
+      vertical-align: top;
+      margin-bottom: 6px;
+    }
+    input[type="number"] {
+      width: 80px;
+      padding: 4px;
+      margin-right: 10px;
+    }
+    select {
+      padding: 4px;
+      margin-bottom: 10px;
+      width: 240px;
+    }
+    .caps-container, .type-level-table {
+      margin-bottom: 20px;
+    }
+    .type-level-table {
+      border-collapse: collapse;
+    }
+    .type-level-table th,
+    .type-level-table td {
+      border: 1px solid #999;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .result-table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .result-table th,
+    .result-table td {
+      border: 1px solid #666;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    /* 固定欄寬：第一欄較寬，其餘每欄 50px */
+    .result-table th:nth-child(1),
+    .result-table td:nth-child(1) {
+      width: 70px;
+    }
+    .result-table th:nth-child(n+2),
+    .result-table td:nth-child(n+2) {
+      width: 50px;
+    }
+    .btn {
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .btn:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #007bff;
+      border-radius: 4px;
+      background-color: #f0f8ff;
+      white-space: normal;
+    }
+    .inline-text {
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>派兵比例計算器（平均分配＋比例優先）</h2>
+
+  <!-- 1. 隊伍數量選擇 -->
+  <div>
+    <label for="numSquads">選擇隊伍數量：</label>
+    <select id="numSquads">
+      <option value="4" selected>4 隊（預設）</option>
+      <option value="5">5 隊</option>
+    </select>
+  </div>
+
+  <!-- 2. 每隊相同的「各兵種上限」 -->
+  <div class="caps-container">
+    <h2>設定每隊各兵種上限（所有隊伍相同）</h2>
+    <label>盾兵上限：</label><input type="number" id="cap_per_shield" min="0" value="0" /><br>
+    <label>矛兵上限：</label><input type="number" id="cap_per_spear"  min="0" value="0" /><br>
+    <label>弓兵上限：</label><input type="number" id="cap_per_archer" min="0" value="0" />
+  </div>
+
+  <!-- 3. 場景選擇（預設打熊） -->
+  <h2>選擇出兵場景</h2>
+  <div>
+    <label for="scenarioSelect">場景：</label>
+    <select id="scenarioSelect">
+      <option value="attack1">集結進攻 － 配比 盾5：矛2：弓3</option>
+      <option value="attack2">集結進攻 － 配比 盾6：矛4：弓0</option>
+      <option value="defense">集結防守 － 配比 盾6：矛2：弓2</option>
+      <option value="bear" selected>打熊比例 － 配比 盾1：矛2：弓7</option>
+      <option value="castle_attack">王城集結 ‐ 進攻：盾5：矛2：弓3</option>
+      <option value="castle_defense">王城集結 ‐ 防守：盾6：矛2：弓2</option>
+      <option value="factory">兵工廠/堡壘爭奪戰 ‐ 配比 盾5：矛2：弓3</option>
+    </select>
+  </div>
+
+  <!-- 4. 輸入可用士兵總量（兵種＋等級） -->
+  <h2>輸入可用士兵總量（兵種＋等級）</h2>
+  <table class="type-level-table">
+    <thead>
+      <tr>
+        <th>兵種＼等級</th>
+        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+        <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>盾</strong></td>
+        <td><input type="number" id="avail_shield_1"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_2"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_3"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_4"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_5"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_6"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_7"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_8"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_9"  min="0" value="0"></td>
+        <td><input type="number" id="avail_shield_10" min="0" value="0"></td>
+      </tr>
+      <tr>
+        <td><strong>矛</strong></td>
+        <td><input type="number" id="avail_spear_1"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_2"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_3"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_4"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_5"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_6"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_7"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_8"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_9"  min="0" value="0"></td>
+        <td><input type="number" id="avail_spear_10" min="0" value="0"></td>
+      </tr>
+      <tr>
+        <td><strong>弓</strong></td>
+        <td><input type="number" id="avail_archer_1"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_2"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_3"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_4"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_5"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_6"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_7"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_8"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_9"  min="0" value="0"></td>
+        <td><input type="number" id="avail_archer_10" min="0" value="0"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 5. 計算按鈕 -->
+  <button class="btn" id="calcBtn">計算最佳派兵分配</button>
+
+  <!-- 6. 結果顯示區 -->
+  <div id="result">
+    歡迎使用派兵比例計算器。請先設定所有參數，然後按「計算最佳派兵分配」。
+  </div>
+
+  <script>
+    // ---------------------------------------
+    // 場景的兵種比例設定
+    // ---------------------------------------
+    const sceneRatios = {
+      attack1:        { shield: 5, spear: 2, archer: 3 },
+      attack2:        { shield: 6, spear: 4, archer: 0 },
+      defense:        { shield: 6, spear: 2, archer: 2 },
+      bear:           { shield: 1, spear: 2, archer: 7 },
+      castle_attack:  { shield: 5, spear: 2, archer: 3 },
+      castle_defense: { shield: 6, spear: 2, archer: 2 },
+      factory:        { shield: 5, spear: 2, archer: 3 }
+    };
+
+    // --------------------------------------------------
+    // 按下「計算」後的主流程
+    // --------------------------------------------------
+    document.getElementById("calcBtn").addEventListener("click", function() {
+      const numSquads = parseInt(document.getElementById("numSquads").value, 10);
+
+      // 讀取每隊相同上限
+      const capShield = parseInt(document.getElementById("cap_per_shield").value, 10) || 0;
+      const capSpear  = parseInt(document.getElementById("cap_per_spear").value, 10)  || 0;
+      const capArcher = parseInt(document.getElementById("cap_per_archer").value, 10) || 0;
+      const squadCaps = [];
+      for (let i = 0; i < numSquads; i++) {
+        squadCaps.push({ shield: capShield, spear: capSpear, archer: capArcher });
+      }
+
+      // 讀取場景比值
+      const selSceneKey = document.getElementById("scenarioSelect").value;
+      const ratio = sceneRatios[selSceneKey];
+
+      // 讀取可用士兵總量（等級→數量 map）
+      const totalAvail = { shield: {}, spear: {}, archer: {} };
+      for (let lvl = 1; lvl <= 10; lvl++) {
+        totalAvail.shield[lvl] = parseInt(document.getElementById(`avail_shield_${lvl}`).value, 10) || 0;
+        totalAvail.spear[lvl]  = parseInt(document.getElementById(`avail_spear_${lvl}`).value, 10)  || 0;
+        totalAvail.archer[lvl] = parseInt(document.getElementById(`avail_archer_${lvl}`).value, 10) || 0;
+      }
+
+      // 執行平均＋比例優先分配
+      const htmlResult = computeAllocationBalanced(numSquads, squadCaps, ratio, totalAvail);
+
+      document.getElementById("result").innerHTML = htmlResult;
+    });
+
+    // --------------------------------------------------------
+    // computeAllocationBalanced：平均分配＋盡可能符合比例
+    // --------------------------------------------------------
+    function computeAllocationBalanced(numSquads, squadCaps, ratio, totalAvail) {
+      /*
+        演算法：
+        1. 建立三個 poolMap = {1:count,2:count,…,10:count}，並算出總數 curShield, curSpear, curArcher。
+        2. squads[i] = { shield:{}, spear:{}, archer:{} }，並 teamTotal[i] = 0。
+        3. 總兵力 curTotal = curShield+curSpear+curArcher。
+        4. 當 curTotal > 0 時反覆：
+           a. 找出 teamIds = 所有 teamTotal 中最小值的隊伍索引清單（如果多於一隊，相同最小值都列入）。
+           b. 選擇 idx = teamIds[0]（或改隨機、或保持順序）。
+           c. 在該隊決定要派哪種 type：
+              i. 若 teamTotal[idx] == 0：選擇 ratio[type]/(sumRatio) 最大且 poolMap[type].total >0；  
+              ii. 否則，計算每種 type 的 desiredFrac = ratio[type]/sumRatio， actualFrac = teamCount[type]/teamTotal[idx]， diff = desiredFrac - actualFrac。從中選擇最大 diff > 0 的 type；  
+              iii. 如果所有 diff ≤ 0 或所選 type pool 為 0 或該隊 type 已滿 cap，則在 poolMap 中任意選擇一種「還有剩」且「隊伍未滿 cap」的 type（可按剩餘數量優先），若都無法則結束迴圈。
+           d. assignOneHighest(idx, type)：把該 type poolMap 中最高 lvl 的 1 個扣給 squads[idx]，teamTotal[idx]++，curTotal--，更新 curShield/curSpear/curArcher。
+        5. 迴圈結束：所有能派的都派完。  
+        6. 組成 HTML：每隊一張 table，加上總人數＋實際比例；再把剩餘 map 做彙整表格。
+      */
+
+      const shieldMap = {}, spearMap = {}, archerMap = {};
+      let curShield  = 0, curSpear = 0, curArcher = 0;
+      for (let lvl = 1; lvl <= 10; lvl++) {
+        shieldMap[lvl]  = totalAvail.shield[lvl]  || 0;
+        spearMap[lvl]   = totalAvail.spear[lvl]   || 0;
+        archerMap[lvl]  = totalAvail.archer[lvl]  || 0;
+        curShield  += shieldMap[lvl];
+        curSpear   += spearMap[lvl];
+        curArcher  += archerMap[lvl];
+      }
+      let curTotal = curShield + curSpear + curArcher;
+
+      // 初始化 squads 及 teamTotal、各隊各 type count
+      const squads = [];
+      const teamTotal = [];
+      for (let i = 0; i < numSquads; i++) {
+        squads.push({ shield: {}, spear: {}, archer: {} });
+        teamTotal.push(0);
+      }
+
+      const sumRatio = ratio.shield + ratio.spear + ratio.archer;
+      const types = ["shield", "spear", "archer"];
+
+      // 輔助：計算隊伍 i 已分配某 type 的總數
+      function sumInTeam(i, type) {
+        return Object.values(squads[i][type]).reduce((a, b) => a + b, 0);
+      }
+      // 輔助：取某 type poolMap 的最高等級是否還有可用？如果有，assign 1
+      function assignOneHighest(i, type) {
+        const poolMap = (type === "shield" ? shieldMap : (type === "spear" ? spearMap : archerMap));
+        for (let lvl = 10; lvl >= 1; lvl--) {
+          if (poolMap[lvl] > 0) {
+            // 檢查該隊是否還有 capacity
+            const assigned = sumInTeam(i, type);
+            if (assigned < squadCaps[i][type]) {
+              poolMap[lvl]--;
+              squads[i][type][lvl] = (squads[i][type][lvl] || 0) + 1;
+              teamTotal[i]++;
+              if (type === "shield")  curShield--;
+              if (type === "spear")   curSpear--;
+              if (type === "archer")  curArcher--;
+              curTotal--;
+            }
+            return true; // 無論是否成功，都 return
+          }
+        }
+        return false;
+      }
+
+      // 反覆分配
+      while (curTotal > 0) {
+        // a. 找最小 teamTotal
+        const minTotal = Math.min(...teamTotal);
+        const teamIds = teamTotal
+          .map((val, idx) => val === minTotal ? idx : -1)
+          .filter(idx => idx >= 0);
+        const idx = teamIds[0]; // 取第一個
+
+        // b. 決定 type
+        let chosenType = null;
+        const teamSum = teamTotal[idx];
+        if (teamSum === 0) {
+          // 初階：直接選 ratio 比例最大且 pool 有剩
+          let bestFrac = -1;
+          types.forEach(type => {
+            const poolSum = (type === "shield" ? curShield
+                          : (type === "spear" ? curSpear : curArcher));
+            if (ratio[type] > 0 && poolSum > 0 && sumInTeam(idx, type) < squadCaps[idx][type]) {
+              const frac = ratio[type] / sumRatio;
+              if (frac > bestFrac) {
+                bestFrac = frac;
+                chosenType = type;
+              }
+            }
+          });
+        } else {
+          // 計算 diff = desiredFrac - actualFrac
+          let bestDiff = -Infinity;
+          types.forEach(type => {
+            const assigned = sumInTeam(idx, type);
+            const desiredFrac = ratio[type] / sumRatio;
+            const actualFrac = assigned / teamSum;
+            const poolSum = (type === "shield" ? curShield
+                          : (type === "spear" ? curSpear : curArcher));
+            if (poolSum > 0 && assigned < squadCaps[idx][type]) {
+              const diff = desiredFrac - actualFrac;
+              if (diff > bestDiff) {
+                bestDiff = diff;
+                chosenType = type;
+              }
+            }
+          });
+          // 如果 bestDiff ≤ 0 或 chosenType 為 null，改選任一滿足「pool 有剩 ＋ 未滿 cap」的 type
+          if (bestDiff <= 0 || chosenType === null) {
+            let fallback = null;
+            let maxPool = 0;
+            types.forEach(type => {
+              const poolSum = (type === "shield" ? curShield
+                            : (type === "spear" ? curSpear : curArcher));
+              if (poolSum > 0 && sumInTeam(idx, type) < squadCaps[idx][type]) {
+                if (poolSum > maxPool) {
+                  maxPool = poolSum;
+                  fallback = type;
+                }
+              }
+            });
+            chosenType = fallback;
+          }
+        }
+        // 無任何 type 可選 → 跳出，代表所有隊伍都滿或不到下一步
+        if (!chosenType) break;
+
+        // c. assignOneHighest
+        assignOneHighest(idx, chosenType);
+      }
+
+      // 6. 組 HTML：每隊表格＋剩餘未分配
+      let html = "";
+
+      function poolSummary(map) {
+        const cntMap = {};
+        for (let lvl = 10; lvl >= 1; lvl--) {
+          cntMap[lvl] = map[lvl] || 0;
+        }
+        return cntMap;
+      }
+
+      for (let i = 0; i < numSquads; i++) {
+        const shieldTotal_i = sumInTeam(i, "shield");
+        const spearTotal_i  = sumInTeam(i, "spear");
+        const archerTotal_i = sumInTeam(i, "archer");
+        const squadTotal_i  = shieldTotal_i + spearTotal_i + archerTotal_i;
+        const pctShield = squadTotal_i > 0 ? ((shieldTotal_i / squadTotal_i) * 100).toFixed(1) : "0.0";
+        const pctSpear  = squadTotal_i > 0 ? ((spearTotal_i  / squadTotal_i) * 100).toFixed(1) : "0.0";
+        const pctArcher = squadTotal_i > 0 ? ((archerTotal_i / squadTotal_i) * 100).toFixed(1) : "0.0";
+
+        html += `<h3>隊伍 ${i + 1} ‐ 總人數：${squadTotal_i}，比例：盾 ${pctShield}% ∶ 矛 ${pctSpear}% ∶ 弓 ${pctArcher}%</h3>`;
+
+        // 組 counts 陣列
+        const counts = {
+          shield: Array(11).fill(0),
+          spear:  Array(11).fill(0),
+          archer: Array(11).fill(0)
+        };
+        types.forEach(type => {
+          const rec = squads[i][type];
+          for (let lvl = 1; lvl <= 10; lvl++) {
+            counts[type][lvl] = rec[lvl] || 0;
+          }
+        });
+
+        html += `<table class="result-table">
+          <thead>
+            <tr>
+              <th>兵種＼等級</th>
+              <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+              <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>盾</strong></td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${counts.shield[lvl]}</td>`;
+        }
+        html += `</tr><tr><td><strong>矛</strong></td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${counts.spear[lvl]}</td>`;
+        }
+        html += `</tr><tr><td><strong>弓</strong></td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${counts.archer[lvl]}</td>`;
+        }
+        html += `</tr></tbody></table>`;
+      }
+
+      // 剩餘池
+      const remShieldMap = poolSummary(shieldMap);
+      const remSpearMap  = poolSummary(spearMap);
+      const remArcherMap = poolSummary(archerMap);
+      const remShieldTotal = Object.values(remShieldMap).reduce((a, b) => a + b, 0);
+      const remSpearTotal  = Object.values(remSpearMap).reduce((a, b) => a + b, 0);
+      const remArcherTotal = Object.values(remArcherMap).reduce((a, b) => a + b, 0);
+      const remOverall     = remShieldTotal + remSpearTotal + remArcherTotal;
+
+      if (remOverall > 0) {
+        html += `<h3>剩餘未分配兵力（已無隊伍空間）</h3>`;
+        html += `<div class="inline-text">盾 共 ${remShieldTotal} 人</div>`;
+        html += `<table class="result-table">
+          <thead><tr><th>等級</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+                      <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+          <tbody><tr><td>盾</td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${remShieldMap[lvl]}</td>`;
+        }
+        html += `</tr></tbody></table>`;
+
+        html += `<div class="inline-text">矛 共 ${remSpearTotal} 人</div>`;
+        html += `<table class="result-table">
+          <thead><tr><th>等級</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+                      <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+          <tbody><tr><td>矛</td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${remSpearMap[lvl]}</td>`;
+        }
+        html += `</tr></tbody></table>`;
+
+        html += `<div class="inline-text">弓 共 ${remArcherTotal} 人</div>`;
+        html += `<table class="result-table">
+          <thead><tr><th>等級</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+                      <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+          <tbody><tr><td>弓</td>`;
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          html += `<td>${remArcherMap[lvl]}</td>`;
+        }
+        html += `</tr></tbody></table>`;
+      }
+
+      return html;
+    }
+  </script>
+</body>
+</html>
